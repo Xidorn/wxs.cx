@@ -159,9 +159,6 @@
     <script>
         document.getElementById('year').textContent = new Date().getFullYear();
 
-        /**
-         * 核心转换：将 10Y 1Mo 3D 转换为 10年1月3天
-         */
         function parseJsonTime(str) {
             if (!str || str === "null") return null;
             return str.toString()
@@ -182,9 +179,17 @@
             return false;
         }
 
-        async function query() {
+        async function query(isAuto = false) {
             const domain = document.getElementById('domainInput').value.trim();
             if(!domain) return;
+
+            // 核心修改：如果不是自动加载（即用户在首页手动查询），则跳转 URL
+            if (!isAuto) {
+                history.pushState(null, null, '/' + domain);
+            }
+
+            document.title = `${domain} - 域名查询 - 王先生查询`;
+
             const btn = document.getElementById('queryBtn');
             btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> 查询中';
             btn.disabled = true;
@@ -248,29 +253,23 @@
             }
         }
 
-        /**
-         * 自动识别路径并查询 (适配 GitHub Pages 404 跳转)
-         */
         function checkAutoQuery() {
-            // 获取并清洗路径，去除首部斜杠
             let pathDomain = window.location.pathname.split('/').filter(Boolean).pop();
-            
-            // 如果路径没有，查一下问号参数 (?wangxiansheng.com)
             if (!pathDomain) {
                 pathDomain = window.location.search.substring(1);
             }
 
             if (pathDomain && pathDomain.includes('.') && pathDomain.length > 3) {
                 document.getElementById('domainInput').value = pathDomain;
-                // 延迟一下确保 UI 加载完全
-                setTimeout(query, 300);
+                // 自动加载时传 true，避免重复修改地址栏
+                setTimeout(() => query(true), 300);
             }
         }
 
         document.getElementById('domainInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') query(); });
-        
-        // 页面载入时启动检测
         window.addEventListener('DOMContentLoaded', checkAutoQuery);
+        // 处理浏览器前进后退
+        window.addEventListener('popstate', checkAutoQuery);
     </script>
 </body>
 </html>
