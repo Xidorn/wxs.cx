@@ -106,8 +106,8 @@
         </header>
 
         <div class="search-wrapper">
-            <input type="text" id="domainInput" placeholder="输入域名并回车分析..." spellcheck="false">
-            <button onclick="query()" id="queryBtn"><i class="fas fa-bolt"></i> 分析</button>
+            <input type="text" id="domainInput" placeholder="输入域名并回车查询..." spellcheck="false">
+            <button onclick="query()" id="queryBtn"><i class="fas fa-bolt"></i> 查询</button>
         </div>
 
         <div id="resultView" class="result-view">
@@ -192,7 +192,7 @@
             const domain = document.getElementById('domainInput').value.trim();
             if(!domain) return;
             const btn = document.getElementById('queryBtn');
-            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> 解析中';
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> 查询中';
             btn.disabled = true;
 
             try {
@@ -252,7 +252,7 @@
                 }
             } catch (err) { alert('查询请求超时，请稍后重试'); } 
             finally { 
-                btn.innerHTML = '<i class="fas fa-bolt"></i> 分析'; 
+                btn.innerHTML = '<i class="fas fa-bolt"></i> 查询'; 
                 btn.disabled = false;
             }
         }
