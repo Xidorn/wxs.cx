@@ -183,12 +183,10 @@
             const domain = document.getElementById('domainInput').value.trim();
             if(!domain) return;
 
-            // 核心修改：如果不是自动加载（即用户在首页手动查询），则跳转 URL
+            // 路由处理：手动输入时跳转路径，但不修改 title
             if (!isAuto) {
                 history.pushState(null, null, '/' + domain);
             }
-
-            document.title = `${domain} - 域名查询 - 王先生查询`;
 
             const btn = document.getElementById('queryBtn');
             btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> 查询中';
@@ -261,14 +259,12 @@
 
             if (pathDomain && pathDomain.includes('.') && pathDomain.length > 3) {
                 document.getElementById('domainInput').value = pathDomain;
-                // 自动加载时传 true，避免重复修改地址栏
                 setTimeout(() => query(true), 300);
             }
         }
 
         document.getElementById('domainInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') query(); });
         window.addEventListener('DOMContentLoaded', checkAutoQuery);
-        // 处理浏览器前进后退
         window.addEventListener('popstate', checkAutoQuery);
     </script>
 </body>
