@@ -3,7 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
     <title>域名查询 - 王先生查询</title>
+    <meta name="description" content="王先生域名查询工具（wxs.cx），提供极速的 Whois 信息查询、RDAP 数据获取、域名年龄计算及到期提醒服务。">
+    <meta name="keywords" content="域名查询, Whois查询, RDAP查询, 域名年龄, 王先生, wxs.cx, 域名状态">
+    <meta name="author" content="王先生">
+    <meta property="og:title" content="域名查询 - 王先生查询">
+    <meta property="og:description" content="极速获取域名注册信息、DNS 服务器及到期时间。">
+    <meta property="og:type" content="website">
+    <meta name="robots" content="index, follow">
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         :root {
@@ -15,6 +24,10 @@
             --radius-xl: 1rem;
             --radius-2xl: 1.5rem;
             --shadow-xl: 0 20px 40px -10px rgba(0, 0, 0, 0.08);
+            
+            /* 新增源数据专用色 */
+            --color-rdap: #6366f1; /* Indigo */
+            --color-whois: #475569; /* Slate */
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -71,11 +84,15 @@
         .info-row { padding: 25px 35px; border-bottom: 1px solid #f1f5f9; display: none; flex-direction: column; gap: 15px; }
         .info-label { font-size: 0.8rem; color: var(--text-light); font-weight: 800; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 10px; }
         
-        /* 颜色标识保留 */
+        /* 基础颜色标识 */
         .ic-time { color: #f59e0b; } 
         .ic-reg { color: #3b82f6; } 
         .ic-dns { color: #10b981; } 
         .ic-lock { color: #ef4444; }
+
+        /* 源数据区域专用样式 */
+        .ic-rdap { color: var(--color-rdap); }
+        .ic-whois { color: var(--color-whois); }
 
         .vertical-list { display: flex; flex-direction: column; gap: 12px; }
         .list-item { display: flex; align-items: center; gap: 15px; font-size: 1.05rem; color: var(--text-dark); font-weight: 600; }
@@ -83,7 +100,7 @@
 
         .source-section { background: var(--bg-white); border-radius: var(--radius-xl); margin-bottom: 25px; border: 1px solid #f1f5f9; box-shadow: var(--shadow-xl); display: none; overflow: hidden; }
         .source-title { padding: 15px 25px; background: #f8fafc; color: var(--text-light); font-size: 0.75rem; font-weight: 700; display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; align-items: center; }
-        .source-content { padding: 25px; color: #475569; font-family: monospace; font-size: 0.85rem; line-height: 1.7; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+        .source-content { padding: 25px; color: #475569; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.85rem; line-height: 1.7; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         footer { text-align: center; padding: 40px 0; color: var(--text-light); font-size: 0.85rem; }
@@ -119,11 +136,11 @@
             </div>
 
             <div id="rdap-box" class="source-section">
-                <div class="source-title"><span class="ic-dns"><i class="fas fa-database"></i> RDAP SOURCE</span></div>
+                <div class="source-title"><span class="ic-rdap"><i class="fas fa-microchip"></i> RDAP RAW DATA</span></div>
                 <pre class="source-content" id="res-rdap"></pre>
             </div>
             <div id="whois-box" class="source-section">
-                <div class="source-title"><span class="ic-lock"><i class="fas fa-file-contract"></i> WHOIS RECORD</span></div>
+                <div class="source-title"><span class="ic-whois"><i class="fas fa-fingerprint"></i> WHOIS ORIGINAL RECORD</span></div>
                 <pre class="source-content" id="res-whois"></pre>
             </div>
         </div>
@@ -154,14 +171,13 @@
 
             const currentPath = window.location.pathname.replace(/^\/|\/$/g, '');
             
-            // 跳转逻辑
             if (domain !== currentPath) {
                 window.location.href = '/' + domain;
                 return;
             }
 
-            // 动态标题
-            document.title = `${domain} - 域名查询 - 王先生查询`;
+            // 动态标题更新
+            document.title = `${domain}域名查询 - 王先生查询`;
 
             const btn = document.getElementById('queryBtn');
             btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> 查询中';
