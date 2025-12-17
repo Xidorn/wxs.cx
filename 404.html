@@ -25,7 +25,7 @@
             --radius-2xl: 1.5rem;
             --shadow-xl: 0 20px 40px -10px rgba(0, 0, 0, 0.08);
             
-            /* 新增源数据专用色 */
+            /* 源数据专用色 */
             --color-rdap: #6366f1; /* Indigo */
             --color-whois: #475569; /* Slate */
         }
@@ -118,7 +118,7 @@
         </header>
 
         <div class="search-wrapper">
-            <input type="text" id="domainInput" placeholder="输入域名并回车查询..." spellcheck="false">
+            <input type="text" id="domainInput" placeholder="输入域名（如: google.com）并回车..." spellcheck="false">
             <button onclick="query()" id="queryBtn"><i class="fas fa-bolt"></i> 查询</button>
         </div>
 
@@ -160,17 +160,29 @@
 
         function setDisplay(id, val, isFlex = false) {
             const el = document.getElementById(id);
+            if(!el) return false;
             const isEmpty = !val || val === '-' || val === 'null' || (Array.isArray(val) && val.length === 0);
             el.style.display = isEmpty ? 'none' : (isFlex ? 'flex' : 'block');
             return !isEmpty;
         }
 
         async function query() {
-            const domain = document.getElementById('domainInput').value.trim().toLowerCase();
-            if(!domain) return;
+            const input = document.getElementById('domainInput');
+            const domain = input.value.trim().toLowerCase();
+            
+            // 1. 输入校验
+            if(!domain) {
+                alert('请输入需要查询的域名');
+                return;
+            }
+            
+            // 简单的域名格式校验 (需包含点)
+            if(!domain.includes('.') || domain.length < 4) {
+                alert('请输入正确的域名格式');
+                return;
+            }
 
             const currentPath = window.location.pathname.replace(/^\/|\/$/g, '');
-            
             if (domain !== currentPath) {
                 window.location.href = '/' + domain;
                 return;
@@ -180,19 +192,25 @@
             document.title = `${domain}域名查询 - 王先生查询`;
 
             const btn = document.getElementById('queryBtn');
+            const resultView = document.getElementById('resultView');
+            
             btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> 查询中';
             btn.disabled = true;
 
             try {
                 const response = await fetch(`https://api.mrwang.com/whois.php?domain=${domain}`);
+                if (!response.ok) throw new Error('Network response was not ok');
+                
                 const res = await response.json();
                 
-                if(res.code === 0 && res.data) {
+                // 2. 结果判空逻辑
+                if(res.code === 0 && res.data && Object.keys(res.data).length > 0) {
                     const d = res.data;
-                    document.getElementById('resultView').style.display = 'block';
+                    resultView.style.display = 'block';
 
                     const ageHtml = parseJsonTime(d.age);
                     if(setDisplay('box-age', ageHtml)) document.getElementById('res-age').innerHTML = ageHtml;
+                    
                     const remainHtml = parseJsonTime(d.remaining);
                     if(setDisplay('box-remaining', remainHtml)) document.getElementById('res-remaining').innerHTML = remainHtml;
 
@@ -211,23 +229,44 @@
                             timeList.innerHTML += `<div class="list-item"><span class="item-sub-label">${f.label}</span><span>${timeStr}</span></div>`;
                         }
                     });
+                    
                     setDisplay('row-times', hasTime, true);
                     setDisplay('row-registrar', d.registrar, true);
-                    document.getElementById('val-registrar').innerText = d.registrar;
+                    document.getElementById('val-registrar').innerText = d.registrar || '';
+                    
                     const hasNs = d.nameServers && d.nameServers.length > 0;
                     document.getElementById('list-ns').innerHTML = hasNs ? d.nameServers.map(ns => `<div class="list-item">${ns}</div>`).join('') : '';
                     setDisplay('row-ns', hasNs, true);
+                    
                     const hasStatus = d.status && d.status.length > 0;
-                    document.getElementById('list-status').innerHTML = hasStatus ? d.status.map(s => `<div class="list-item">${s.text}</div>`).join('') : '';
+                    document.getElementById('list-status').innerHTML = hasStatus ? d.status.map(s => `<div class="list-item">${s.text || s}</div>`).join('') : '';
                     setDisplay('row-status', hasStatus, true);
 
                     if(d.rdapData && d.rdapData !== "null") {
-                        document.getElementById('res-rdap').innerText = JSON.stringify(typeof d.rdapData === 'string' ? JSON.parse(d.rdapData) : d.rdapData, null, 2);
-                        document.getElementById('rdap-box').style.display = 'block';
+                        try {
+                            const rdapObj = typeof d.rdapData === 'string' ? JSON.parse(d.rdapData) : d.rdapData;
+                            document.getElementById('res-rdap').innerText = JSON.stringify(rdapObj, null, 2);
+                            document.getElementById('rdap-box').style.display = 'block';
+                        } catch(e) {
+                            document.getElementById('rdap-box').style.display = 'none';
+                        }
+                    } else {
+                        document.getElementById('rdap-box').style.display = 'none';
                     }
-                    if(setDisplay('whois-box', d.whoisData)) document.getElementById('res-whois').innerText = d.whoisData;
+                    
+                    if(setDisplay('whois-box', d.whoisData)) {
+                        document.getElementById('res-whois').innerText = d.whoisData;
+                    }
+                } else {
+                    // 3. API 返回成功但数据为空或报错
+                    resultView.style.display = 'none';
+                    alert(res.msg || '查询失败：未找到该域名的 Whois 信息');
                 }
-            } catch (err) { alert('查询失败'); } 
+            } catch (err) { 
+                resultView.style.display = 'none';
+                alert('查询服务暂时不可用，请稍后再试'); 
+                console.error(err);
+            } 
             finally { 
                 btn.innerHTML = '<i class="fas fa-bolt"></i> 查询'; 
                 btn.disabled = false;
@@ -236,7 +275,10 @@
 
         function checkAutoQuery() {
             let pathDomain = window.location.pathname.split('/').filter(Boolean).pop();
-            if (!pathDomain) pathDomain = window.location.search.substring(1);
+            if (!pathDomain) {
+                const urlParams = new URLSearchParams(window.location.search);
+                pathDomain = urlParams.get('domain');
+            }
 
             if (pathDomain && pathDomain.includes('.') && pathDomain.length > 3) {
                 document.getElementById('domainInput').value = pathDomain;
