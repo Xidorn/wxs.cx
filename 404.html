@@ -24,10 +24,9 @@
             --radius-xl: 1rem;
             --radius-2xl: 1.5rem;
             --shadow-xl: 0 20px 40px -10px rgba(0, 0, 0, 0.08);
-            
-            /* 源数据专用色 */
-            --color-rdap: #6366f1; /* Indigo */
-            --color-whois: #475569; /* Slate */
+            --color-rdap: #6366f1;
+            --color-whois: #475569;
+            --color-error: #ef4444; /* 错误提醒颜色 */
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -58,7 +57,7 @@
 
         .search-wrapper {
             background: var(--bg-white); border-radius: 50px; padding: 6px 6px 6px 25px;
-            display: flex; box-shadow: var(--shadow-xl); margin-bottom: 35px;
+            display: flex; box-shadow: var(--shadow-xl); margin-bottom: 20px;
             border: 1px solid rgba(255,255,255,0.8); transition: transform 0.3s;
         }
         .search-wrapper:focus-within { transform: translateY(-2px); border-color: var(--primary-color); }
@@ -66,6 +65,21 @@
         .search-wrapper button {
             background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
             color: white; border: none; padding: 12px 30px; border-radius: 40px; font-weight: 600; cursor: pointer;
+        }
+
+        /* 提醒消息样式 */
+        #alertMsg {
+            display: none;
+            text-align: center;
+            padding: 12px;
+            background: #fef2f2;
+            color: var(--color-error);
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border: 1px solid #fee2e2;
+            animation: fadeIn 0.3s ease;
         }
 
         .result-view { display: none; animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
@@ -84,13 +98,10 @@
         .info-row { padding: 25px 35px; border-bottom: 1px solid #f1f5f9; display: none; flex-direction: column; gap: 15px; }
         .info-label { font-size: 0.8rem; color: var(--text-light); font-weight: 800; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 10px; }
         
-        /* 基础颜色标识 */
         .ic-time { color: #f59e0b; } 
         .ic-reg { color: #3b82f6; } 
         .ic-dns { color: #10b981; } 
         .ic-lock { color: #ef4444; }
-
-        /* 源数据区域专用样式 */
         .ic-rdap { color: var(--color-rdap); }
         .ic-whois { color: var(--color-whois); }
 
@@ -102,7 +113,7 @@
         .source-title { padding: 15px 25px; background: #f8fafc; color: var(--text-light); font-size: 0.75rem; font-weight: 700; display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; align-items: center; }
         .source-content { padding: 25px; color: #475569; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.85rem; line-height: 1.7; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
 
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         footer { text-align: center; padding: 40px 0; color: var(--text-light); font-size: 0.85rem; }
         footer a { color: inherit; text-decoration: none; }
         
@@ -118,9 +129,11 @@
         </header>
 
         <div class="search-wrapper">
-            <input type="text" id="domainInput" placeholder="输入域名（如: google.com）并回车..." spellcheck="false">
+            <input type="text" id="domainInput" placeholder="输入域名并回车查询..." spellcheck="false">
             <button onclick="query()" id="queryBtn"><i class="fas fa-bolt"></i> 查询</button>
         </div>
+
+        <div id="alertMsg"></div>
 
         <div id="resultView" class="result-view">
             <div class="hero-stats">
@@ -160,25 +173,32 @@
 
         function setDisplay(id, val, isFlex = false) {
             const el = document.getElementById(id);
-            if(!el) return false;
             const isEmpty = !val || val === '-' || val === 'null' || (Array.isArray(val) && val.length === 0);
             el.style.display = isEmpty ? 'none' : (isFlex ? 'flex' : 'block');
             return !isEmpty;
         }
 
+        function showAlert(msg) {
+            const el = document.getElementById('alertMsg');
+            if (msg) {
+                el.innerText = msg;
+                el.style.display = 'block';
+            } else {
+                el.style.display = 'none';
+            }
+        }
+
         async function query() {
-            const input = document.getElementById('domainInput');
-            const domain = input.value.trim().toLowerCase();
-            
-            // 1. 输入校验
+            const domain = document.getElementById('domainInput').value.trim().toLowerCase();
+            showAlert(null); // 清除旧提醒
+
             if(!domain) {
-                alert('请输入需要查询的域名');
+                showAlert('请输入要查询的域名');
                 return;
             }
-            
-            // 简单的域名格式校验 (需包含点)
+
             if(!domain.includes('.') || domain.length < 4) {
-                alert('请输入正确的域名格式');
+                showAlert('请输入正确的域名格式');
                 return;
             }
 
@@ -188,29 +208,21 @@
                 return;
             }
 
-            // 动态标题更新
             document.title = `${domain}域名查询 - 王先生查询`;
-
             const btn = document.getElementById('queryBtn');
-            const resultView = document.getElementById('resultView');
-            
             btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> 查询中';
             btn.disabled = true;
 
             try {
                 const response = await fetch(`https://api.mrwang.com/whois.php?domain=${domain}`);
-                if (!response.ok) throw new Error('Network response was not ok');
-                
                 const res = await response.json();
                 
-                // 2. 结果判空逻辑
                 if(res.code === 0 && res.data && Object.keys(res.data).length > 0) {
                     const d = res.data;
-                    resultView.style.display = 'block';
+                    document.getElementById('resultView').style.display = 'block';
 
                     const ageHtml = parseJsonTime(d.age);
                     if(setDisplay('box-age', ageHtml)) document.getElementById('res-age').innerHTML = ageHtml;
-                    
                     const remainHtml = parseJsonTime(d.remaining);
                     if(setDisplay('box-remaining', remainHtml)) document.getElementById('res-remaining').innerHTML = remainHtml;
 
@@ -229,45 +241,29 @@
                             timeList.innerHTML += `<div class="list-item"><span class="item-sub-label">${f.label}</span><span>${timeStr}</span></div>`;
                         }
                     });
-                    
                     setDisplay('row-times', hasTime, true);
                     setDisplay('row-registrar', d.registrar, true);
-                    document.getElementById('val-registrar').innerText = d.registrar || '';
-                    
+                    document.getElementById('val-registrar').innerText = d.registrar;
                     const hasNs = d.nameServers && d.nameServers.length > 0;
                     document.getElementById('list-ns').innerHTML = hasNs ? d.nameServers.map(ns => `<div class="list-item">${ns}</div>`).join('') : '';
                     setDisplay('row-ns', hasNs, true);
-                    
                     const hasStatus = d.status && d.status.length > 0;
-                    document.getElementById('list-status').innerHTML = hasStatus ? d.status.map(s => `<div class="list-item">${s.text || s}</div>`).join('') : '';
+                    document.getElementById('list-status').innerHTML = hasStatus ? d.status.map(s => `<div class="list-item">${s.text}</div>`).join('') : '';
                     setDisplay('row-status', hasStatus, true);
 
                     if(d.rdapData && d.rdapData !== "null") {
-                        try {
-                            const rdapObj = typeof d.rdapData === 'string' ? JSON.parse(d.rdapData) : d.rdapData;
-                            document.getElementById('res-rdap').innerText = JSON.stringify(rdapObj, null, 2);
-                            document.getElementById('rdap-box').style.display = 'block';
-                        } catch(e) {
-                            document.getElementById('rdap-box').style.display = 'none';
-                        }
-                    } else {
-                        document.getElementById('rdap-box').style.display = 'none';
+                        document.getElementById('res-rdap').innerText = JSON.stringify(typeof d.rdapData === 'string' ? JSON.parse(d.rdapData) : d.rdapData, null, 2);
+                        document.getElementById('rdap-box').style.display = 'block';
                     }
-                    
-                    if(setDisplay('whois-box', d.whoisData)) {
-                        document.getElementById('res-whois').innerText = d.whoisData;
-                    }
+                    if(setDisplay('whois-box', d.whoisData)) document.getElementById('res-whois').innerText = d.whoisData;
                 } else {
-                    // 3. API 返回成功但数据为空或报错
-                    resultView.style.display = 'none';
-                    alert(res.msg || '查询失败：未找到该域名的 Whois 信息');
+                    document.getElementById('resultView').style.display = 'none';
+                    showAlert(res.msg || '查询失败，未找到该域名信息');
                 }
             } catch (err) { 
-                resultView.style.display = 'none';
-                alert('查询服务暂时不可用，请稍后再试'); 
-                console.error(err);
-            } 
-            finally { 
+                document.getElementById('resultView').style.display = 'none';
+                showAlert('查询出错，请检查网络或重试'); 
+            } finally { 
                 btn.innerHTML = '<i class="fas fa-bolt"></i> 查询'; 
                 btn.disabled = false;
             }
@@ -275,10 +271,7 @@
 
         function checkAutoQuery() {
             let pathDomain = window.location.pathname.split('/').filter(Boolean).pop();
-            if (!pathDomain) {
-                const urlParams = new URLSearchParams(window.location.search);
-                pathDomain = urlParams.get('domain');
-            }
+            if (!pathDomain) pathDomain = window.location.search.substring(1);
 
             if (pathDomain && pathDomain.includes('.') && pathDomain.length > 3) {
                 document.getElementById('domainInput').value = pathDomain;
