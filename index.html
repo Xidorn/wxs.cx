@@ -57,7 +57,7 @@
         .stat-box i { position: absolute; right: -10px; bottom: -10px; font-size: 5rem; opacity: 0.05; transform: rotate(-15deg); }
         .stat-box .label { font-size: 0.75rem; color: var(--text-light); text-transform: uppercase; margin-bottom: 10px; display: block; font-weight: 700; letter-spacing: 1px; }
         .stat-box .value { font-size: 1.4rem; font-weight: 800; color: var(--text-dark); position: relative; z-index: 1; }
-        .stat-box .value b { color: var(--primary-color); font-size: 1.7rem; }
+        .stat-box .value b { color: var(--primary-color); font-size: 1.7rem; font-weight: 900; }
 
         .detail-card { 
             background: var(--bg-white); border-radius: var(--radius-2xl); 
@@ -159,11 +159,14 @@
     <script>
         document.getElementById('year').textContent = new Date().getFullYear();
 
+        /**
+         * 核心转换：将 10Y 1Mo 3D 转换为 10年1月3天
+         */
         function parseJsonTime(str) {
             if (!str || str === "null") return null;
             return str.toString()
-                .replace(/(\d+)Y/g, '<b>$1</b>年 ')
-                .replace(/(\d+)Mo/g, '<b>$1</b>月 ')
+                .replace(/(\d+)Y/g, '<b>$1</b>年')
+                .replace(/(\d+)Mo/g, '<b>$1</b>月')
                 .replace(/(\d+)D/g, '<b>$1</b>天')
                 .trim();
         }
@@ -237,7 +240,6 @@
                     }
 
                     if(setDisplay('whois-box', d.whoisData)) document.getElementById('res-whois').innerText = d.whoisData;
-
                 }
             } catch (err) { alert('查询服务响应超时'); } 
             finally { 
@@ -246,7 +248,29 @@
             }
         }
 
+        /**
+         * 自动识别路径并查询 (适配 GitHub Pages 404 跳转)
+         */
+        function checkAutoQuery() {
+            // 获取并清洗路径，去除首部斜杠
+            let pathDomain = window.location.pathname.split('/').filter(Boolean).pop();
+            
+            // 如果路径没有，查一下问号参数 (?wangxiansheng.com)
+            if (!pathDomain) {
+                pathDomain = window.location.search.substring(1);
+            }
+
+            if (pathDomain && pathDomain.includes('.') && pathDomain.length > 3) {
+                document.getElementById('domainInput').value = pathDomain;
+                // 延迟一下确保 UI 加载完全
+                setTimeout(query, 300);
+            }
+        }
+
         document.getElementById('domainInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') query(); });
+        
+        // 页面载入时启动检测
+        window.addEventListener('DOMContentLoaded', checkAutoQuery);
     </script>
 </body>
 </html>
