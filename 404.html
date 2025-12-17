@@ -71,13 +71,18 @@
         .info-row { padding: 25px 35px; border-bottom: 1px solid #f1f5f9; display: none; flex-direction: column; gap: 15px; }
         .info-label { font-size: 0.8rem; color: var(--text-light); font-weight: 800; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 10px; }
         
-        .ic-time { color: #f59e0b; } .ic-reg { color: #3b82f6; } .ic-dns { color: #10b981; } .ic-lock { color: #ef4444; }
+        /* 颜色标识保留 */
+        .ic-time { color: #f59e0b; } 
+        .ic-reg { color: #3b82f6; } 
+        .ic-dns { color: #10b981; } 
+        .ic-lock { color: #ef4444; }
+
         .vertical-list { display: flex; flex-direction: column; gap: 12px; }
         .list-item { display: flex; align-items: center; gap: 15px; font-size: 1.05rem; color: var(--text-dark); font-weight: 600; }
         .item-sub-label { font-size: 0.8rem; color: var(--text-light); width: 85px; font-weight: 500; }
 
         .source-section { background: var(--bg-white); border-radius: var(--radius-xl); margin-bottom: 25px; border: 1px solid #f1f5f9; box-shadow: var(--shadow-xl); display: none; overflow: hidden; }
-        .source-title { padding: 15px 25px; background: #f8fafc; color: var(--text-light); font-size: 0.75rem; font-weight: 700; display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; }
+        .source-title { padding: 15px 25px; background: #f8fafc; color: var(--text-light); font-size: 0.75rem; font-weight: 700; display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; align-items: center; }
         .source-content { padding: 25px; color: #475569; font-family: monospace; font-size: 0.85rem; line-height: 1.7; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
@@ -113,8 +118,14 @@
                 <div id="row-status" class="info-row"><span class="info-label ic-lock"><i class="fas fa-shield-halved"></i> 域名状态</span><div class="vertical-list" id="list-status"></div></div>
             </div>
 
-            <div id="rdap-box" class="source-section"><div class="source-title"><span>RDAP SOURCE</span></div><pre class="source-content" id="res-rdap"></pre></div>
-            <div id="whois-box" class="source-section"><div class="source-title"><span>WHOIS RECORD</span></div><pre class="source-content" id="res-whois"></pre></div>
+            <div id="rdap-box" class="source-section">
+                <div class="source-title"><span class="ic-dns"><i class="fas fa-database"></i> RDAP SOURCE</span></div>
+                <pre class="source-content" id="res-rdap"></pre>
+            </div>
+            <div id="whois-box" class="source-section">
+                <div class="source-title"><span class="ic-lock"><i class="fas fa-file-contract"></i> WHOIS RECORD</span></div>
+                <pre class="source-content" id="res-whois"></pre>
+            </div>
         </div>
 
         <footer>
@@ -143,14 +154,14 @@
 
             const currentPath = window.location.pathname.replace(/^\/|\/$/g, '');
             
-            // 💡 保持跳转逻辑：输入与路径不同时重定向
+            // 跳转逻辑
             if (domain !== currentPath) {
                 window.location.href = '/' + domain;
                 return;
             }
 
-            // 更新动态标题
-            document.title = `${domain}域名查询 - 王先生查询`;
+            // 动态标题
+            document.title = `${domain} - 域名查询 - 王先生查询`;
 
             const btn = document.getElementById('queryBtn');
             btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> 查询中';
