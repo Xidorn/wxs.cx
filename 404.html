@@ -185,6 +185,10 @@
         async function query() {
             const domain = document.getElementById('domainInput').value.trim();
             if(!domain) return;
+
+            // 更新标题：域名 + 域名查询 + 王先生查询
+            document.title = `${domain}域名查询 - 王先生查询`;
+
             const btn = document.getElementById('queryBtn');
             btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> 查询中';
             btn.disabled = true;
@@ -252,24 +256,19 @@
          * 自动识别路径并查询 (适配 GitHub Pages 404 跳转)
          */
         function checkAutoQuery() {
-            // 获取并清洗路径，去除首部斜杠
             let pathDomain = window.location.pathname.split('/').filter(Boolean).pop();
-            
-            // 如果路径没有，查一下问号参数 (?wangxiansheng.com)
             if (!pathDomain) {
                 pathDomain = window.location.search.substring(1);
             }
 
             if (pathDomain && pathDomain.includes('.') && pathDomain.length > 3) {
                 document.getElementById('domainInput').value = pathDomain;
-                // 延迟一下确保 UI 加载完全
+                // 执行查询（query 函数内部会处理 document.title）
                 setTimeout(query, 300);
             }
         }
 
         document.getElementById('domainInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') query(); });
-        
-        // 页面载入时启动检测
         window.addEventListener('DOMContentLoaded', checkAutoQuery);
     </script>
 </body>
