@@ -19,7 +19,7 @@
             --radius-xl: 1rem;
             --radius-2xl: 1.5rem;
             --shadow-xl: 0 20px 40px -10px rgba(0, 0, 0, 0.08);
-            --color-error: #ef4444;
+            --color-error: #be123c; /* 优化为更协调柔和的深玫瑰红 */
             --color-success: #10b981;
             --color-warning: #f59e0b;
         }
@@ -62,7 +62,7 @@
 
         #alertMsg {
             display: none; text-align: center; padding: 12px; background: #fef2f2;
-            color: var(--color-error); border-radius: 12px; margin-bottom: 20px;
+            color: #ef4444; border-radius: 12px; margin-bottom: 20px;
             font-size: 0.9rem; font-weight: 600; border: 1px solid #fee2e2;
         }
 
@@ -180,15 +180,10 @@
     <script>
         document.getElementById('year').textContent = new Date().getFullYear();
 
-        /**
-         * 格式化域名时间字符串
-         * @param {string} str 时间字符串 (如 "1Y2Mo3D" 或 "-5D")
-         * @param {string} type 'age' 或 'remaining'
-         */
         function parseDomainTime(str, type) {
             if (!str || str === "null" || str === "") return "-";
 
-            // 基础格式化
+            // 基础格式化数字部分
             let formatted = str.toString()
                 .replace(/(\d+)Y/g, '<b>$1</b>年')
                 .replace(/(\d+)Mo/g, '<b>$1</b>月')
@@ -200,20 +195,18 @@
             const dMatch = str.match(/(\d+)D/);
             const days = dMatch ? parseInt(dMatch[1]) : 0;
 
-            // 逻辑处理：域名年龄
             if (type === 'age') {
                 if (!hasY && !hasMo && days < 7) {
                     return formatted + ' <span class="status-badge badge-recent">最近注册</span>';
                 }
             }
 
-            // 逻辑处理：到期倒计时
             if (type === 'remaining') {
                 const isExpired = str.includes('-') || (str.trim() === '0D');
                 if (isExpired) {
-                    // 已过期只显示状态和时长，不显示多余徽章
                     let cleanValue = formatted.replace(/-/g, '');
-                    return `<span style="color:var(--color-error); font-weight:800;">已过期 ${cleanValue}</span>`;
+                    // 优化：使用柔和的深玫瑰红，并直接显示“已过期”，不再使用额外的 badge
+                    return `<span style="color:var(--color-error); font-weight:700;">已过期 ${cleanValue}</span>`;
                 }
                 if (!hasY && !hasMo && days < 7) {
                     return formatted + ' <span class="status-badge badge-warning">即将到期</span>';
@@ -246,10 +239,13 @@
                 return;
             }
 
+            // 动态修改标题
+            document.title = `${domain}域名查询 - 王先生查询`;
+
             const currentPath = window.location.pathname.replace(/^\//, '');
             if (domain !== currentPath) {
-                window.location.href = '/' + domain;
-                return;
+                // 如果需要改变URL而不刷新页面，可以使用 history.pushState，但此逻辑维持了原有的跳转设计
+                window.history.pushState(null, '', '/' + domain);
             }
 
             btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> 查询中';
