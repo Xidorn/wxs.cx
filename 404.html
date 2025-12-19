@@ -21,7 +21,7 @@
             --shadow-xl: 0 20px 40px -10px rgba(0, 0, 0, 0.08);
             --color-error: #ef4444; 
             --color-success: #10b981;
-            --color-warning: #d97706; /* 优化为琥珀黄，用于已过期文字，协调且醒目 */
+            --color-warning: #d97706; /* 用于已过期的琥珀黄 */
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -103,9 +103,14 @@
         .list-item { display: flex; align-items: center; gap: 15px; font-size: 1.05rem; color: var(--text-dark); font-weight: 600; }
         .item-sub-label { font-size: 0.8rem; color: var(--text-light); width: 85px; font-weight: 500; }
 
+        /* 原始数据部分样式调整 */
         .source-section { background: var(--bg-white); border-radius: var(--radius-xl); margin-bottom: 25px; border: 1px solid #f1f5f9; box-shadow: var(--shadow-xl); display: none; overflow: hidden; }
         .source-title { padding: 15px 25px; background: #f8fafc; color: var(--text-light); font-size: 0.75rem; font-weight: 700; display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; align-items: center; }
         .source-content { padding: 25px; color: #475569; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; line-height: 1.7; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+
+        /* 特殊图标颜色定义 */
+        .ic-rdap { color: #4338ca; } /* 深靛蓝 */
+        .ic-whois { color: #475569; } /* 石板灰 */
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         footer { text-align: center; padding: 40px 0; color: var(--text-light); font-size: 0.85rem; }
@@ -163,11 +168,11 @@
             </div>
 
             <div id="rdap-box" class="source-section">
-                <div class="source-title"><span><i class="fas fa-microchip"></i> RDAP RAW DATA</span></div>
+                <div class="source-title"><span><i class="fas fa-microchip ic-rdap"></i> RDAP RAW DATA</span></div>
                 <pre class="source-content" id="res-rdap"></pre>
             </div>
             <div id="whois-box" class="source-section">
-                <div class="source-title"><span><i class="fas fa-fingerprint"></i> WHOIS ORIGINAL RECORD</span></div>
+                <div class="source-title"><span><i class="fas fa-fingerprint ic-whois"></i> WHOIS ORIGINAL RECORD</span></div>
                 <pre class="source-content" id="res-whois"></pre>
             </div>
         </div>
@@ -183,7 +188,6 @@
         function parseDomainTime(str, type) {
             if (!str || str === "null" || str === "") return "-";
 
-            // 基础格式化数字部分
             let formatted = str.toString()
                 .replace(/(\d+)Y/g, '<b>$1</b>年')
                 .replace(/(\d+)Mo/g, '<b>$1</b>月')
@@ -205,7 +209,6 @@
                 const isExpired = str.includes('-') || (str.trim() === '0D');
                 if (isExpired) {
                     let cleanValue = formatted.replace(/-/g, '');
-                    // 优化：使用琥珀黄颜色，并显示“已过期”
                     return `<span style="color:var(--color-warning); font-weight:700;">已过期 ${cleanValue}</span>`;
                 }
                 if (!hasY && !hasMo && days < 7) {
@@ -239,7 +242,6 @@
                 return;
             }
 
-            // 动态修改标题
             document.title = `${domain}域名查询 - 王先生查询`;
 
             const currentPath = window.location.pathname.replace(/^\//, '');
