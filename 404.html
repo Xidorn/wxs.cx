@@ -19,9 +19,9 @@
             --radius-xl: 1rem;
             --radius-2xl: 1.5rem;
             --shadow-xl: 0 20px 40px -10px rgba(0, 0, 0, 0.08);
-            --color-error: #be123c; /* 优化为更协调柔和的深玫瑰红 */
+            --color-error: #ef4444; 
             --color-success: #10b981;
-            --color-warning: #f59e0b;
+            --color-warning: #d97706; /* 优化为琥珀黄，用于已过期文字，协调且醒目 */
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -62,7 +62,7 @@
 
         #alertMsg {
             display: none; text-align: center; padding: 12px; background: #fef2f2;
-            color: #ef4444; border-radius: 12px; margin-bottom: 20px;
+            color: var(--color-error); border-radius: 12px; margin-bottom: 20px;
             font-size: 0.9rem; font-weight: 600; border: 1px solid #fee2e2;
         }
 
@@ -205,8 +205,8 @@
                 const isExpired = str.includes('-') || (str.trim() === '0D');
                 if (isExpired) {
                     let cleanValue = formatted.replace(/-/g, '');
-                    // 优化：使用柔和的深玫瑰红，并直接显示“已过期”，不再使用额外的 badge
-                    return `<span style="color:var(--color-error); font-weight:700;">已过期 ${cleanValue}</span>`;
+                    // 优化：使用琥珀黄颜色，并显示“已过期”
+                    return `<span style="color:var(--color-warning); font-weight:700;">已过期 ${cleanValue}</span>`;
                 }
                 if (!hasY && !hasMo && days < 7) {
                     return formatted + ' <span class="status-badge badge-warning">即将到期</span>';
@@ -244,7 +244,6 @@
 
             const currentPath = window.location.pathname.replace(/^\//, '');
             if (domain !== currentPath) {
-                // 如果需要改变URL而不刷新页面，可以使用 history.pushState，但此逻辑维持了原有的跳转设计
                 window.history.pushState(null, '', '/' + domain);
             }
 
