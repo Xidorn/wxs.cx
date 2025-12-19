@@ -23,6 +23,7 @@
             --color-whois: #475569;
             --color-error: #ef4444;
             --color-success: #10b981;
+            --color-warning: #f59e0b;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -67,7 +68,6 @@
             font-size: 0.9rem; font-weight: 600; border: 1px solid #fee2e2;
         }
 
-        /* 未注册状态容器 */
         #unregisteredView {
             display: none; background: var(--bg-white); padding: 50px 20px; border-radius: var(--radius-2xl);
             box-shadow: var(--shadow-xl); text-align: center; animation: fadeIn 0.5s ease;
@@ -87,6 +87,7 @@
         .stat-box .label { font-size: 0.75rem; color: var(--text-light); text-transform: uppercase; margin-bottom: 10px; display: block; font-weight: 700; letter-spacing: 1px; }
         .stat-box .value { font-size: 1.4rem; font-weight: 800; color: var(--text-dark); position: relative; z-index: 1; }
         .stat-box .value b { color: var(--primary-color); font-size: 1.7rem; font-weight: 900; }
+        .badge-new { font-size: 0.8rem; color: var(--accent-color); font-weight: 600; margin-left: 5px; background: #f5f3ff; padding: 2px 8px; border-radius: 10px; }
 
         .detail-card { background: var(--bg-white); border-radius: var(--radius-2xl); box-shadow: var(--shadow-xl); overflow: hidden; margin-bottom: 30px; }
         .info-row { padding: 25px 35px; border-bottom: 1px solid #f1f5f9; display: none; flex-direction: column; gap: 15px; }
@@ -180,24 +181,37 @@
     <script>
         document.getElementById('year').textContent = new Date().getFullYear();
 
+        /**
+         * 解析 API 返回的 age/remaining 字符串
+         * 格式示例: "21Y 8Mo 8D"
+         */
         function parseJsonTime(str, isAge = false) {
             if (!str || str === "null" || str === "") {
-                return isAge ? '<span style="color:var(--accent-color)">注册不久</span>' : null;
+                return isAge ? '<span class="badge-new">注册不久</span>' : null;
             }
-            
-            // 针对年龄：如果只有天数且小于7天，显示“注册不久”
+
+            // 1. 转换基础格式
+            let formatted = str.toString()
+                .replace(/(\d+)Y/g, '<b>$1</b>年 ')
+                .replace(/(\d+)Mo/g, '<b>$1</b>月 ')
+                .replace(/(\d+)D/g, '<b>$1</b>天')
+                .trim();
+
+            // 2. 逻辑判断：如果小于7天（针对域名年龄）
             if (isAge) {
-                const daysMatch = str.match(/^(\d+)D$/);
-                if (daysMatch && parseInt(daysMatch[1]) < 7) {
-                    return '<span style="color:var(--accent-color)">注册不久</span>';
+                // 检查是否不含年、不含月
+                const hasYear = str.includes('Y');
+                const hasMonth = str.includes('Mo');
+                const daysMatch = str.match(/(\d+)D/);
+                const days = daysMatch ? parseInt(daysMatch[1]) : 0;
+
+                // 只有天数且天数 < 7
+                if (!hasYear && !hasMonth && days < 7) {
+                    return formatted + ' <span class="badge-new">注册不久</span>';
                 }
             }
 
-            return str.toString()
-                .replace(/(\d+)Y/g, '<b>$1</b>年')
-                .replace(/(\d+)Mo/g, '<b>$1</b>月')
-                .replace(/(\d+)D/g, '<b>$1</b>天')
-                .trim();
+            return formatted;
         }
 
         function setDisplay(id, val, isFlex = false) {
@@ -214,7 +228,6 @@
             const resultEl = document.getElementById('resultView');
             const btn = document.getElementById('queryBtn');
 
-            // 重置状态
             alertEl.style.display = 'none';
             unregEl.style.display = 'none';
             resultEl.style.display = 'none';
@@ -225,7 +238,6 @@
                 return;
             }
 
-            // 路由同步
             const currentPath = window.location.pathname.replace(/^\//, '');
             if (domain !== currentPath) {
                 window.location.href = '/' + domain;
@@ -242,21 +254,18 @@
                 if(res.code === 0 && res.data) {
                     const d = res.data;
 
-                    // 1. 处理未注册状态
                     if (d.registered === false) {
                         document.getElementById('unreg-domain-name').innerText = domain;
                         unregEl.style.display = 'block';
                         return;
                     }
 
-                    // 2. 处理已注册状态
                     resultEl.style.display = 'block';
 
-                    // 顶部统计
+                    // 渲染年龄和剩余时间（保留年月日，如果是新域名标注注册不久）
                     document.getElementById('res-age').innerHTML = parseJsonTime(d.age, true);
-                    document.getElementById('res-remaining').innerHTML = parseJsonTime(d.remaining) || '即将到期';
+                    document.getElementById('res-remaining').innerHTML = parseJsonTime(d.remaining, false) || '即将到期';
 
-                    // 时间节点列表
                     const timeList = document.getElementById('list-times');
                     timeList.innerHTML = '';
                     const timeFields = [
@@ -274,21 +283,17 @@
                     });
                     setDisplay('row-times', hasValidTime, true);
 
-                    // 服务商
                     setDisplay('row-registrar', d.registrar, true);
                     document.getElementById('val-registrar').innerText = d.registrar;
 
-                    // NS 列表
                     const hasNs = d.nameServers && d.nameServers.length > 0;
                     document.getElementById('list-ns').innerHTML = hasNs ? d.nameServers.map(ns => `<div class="list-item">${ns}</div>`).join('') : '';
                     setDisplay('row-ns', hasNs, true);
 
-                    // 状态列表
                     const hasStatus = d.status && d.status.length > 0;
                     document.getElementById('list-status').innerHTML = hasStatus ? d.status.map(s => `<div class="list-item">${s.text}</div>`).join('') : '';
                     setDisplay('row-status', hasStatus, true);
 
-                    // 原始数据
                     if(d.rdapData && d.rdapData !== "" && d.rdapData !== "null") {
                         document.getElementById('res-rdap').innerText = JSON.stringify(typeof d.rdapData === 'string' ? JSON.parse(d.rdapData) : d.rdapData, null, 2);
                         document.getElementById('rdap-box').style.display = 'block';
@@ -308,7 +313,6 @@
             }
         }
 
-        // 自动查询逻辑
         function checkAutoQuery() {
             let pathDomain = window.location.pathname.split('/').filter(Boolean).pop();
             if (!pathDomain) pathDomain = new URLSearchParams(window.location.search).get('domain');
