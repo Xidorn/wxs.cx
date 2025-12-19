@@ -88,7 +88,6 @@
         .stat-box .value { font-size: 1.4rem; font-weight: 800; color: var(--text-dark); position: relative; z-index: 1; }
         .stat-box .value b { color: var(--primary-color); font-size: 1.7rem; font-weight: 900; }
         
-        /* 状态标签样式 */
         .status-badge { font-size: 0.8rem; font-weight: 700; padding: 2px 10px; border-radius: 8px; margin-left: 5px; vertical-align: middle; }
         .badge-recent { color: var(--accent-color); background: #f5f3ff; }
         .badge-warning { color: #92400e; background: #fef3c7; }
@@ -184,47 +183,36 @@
     <script>
         document.getElementById('year').textContent = new Date().getFullYear();
 
-        /**
-         * 核心解析函数
-         */
         function parseDomainTime(str, type) {
             if (!str || str === "null" || str === "") return "-";
 
-            // 1. 基础格式化
             let formatted = str.toString()
                 .replace(/(\d+)Y/g, '<b>$1</b>年')
                 .replace(/(\d+)Mo/g, '<b>$1</b>月')
                 .replace(/(\d+)D/g, '<b>$1</b>天')
                 .trim();
 
-            // 提取数值用于逻辑判断
             const hasY = str.includes('Y');
             const hasMo = str.includes('Mo');
             const dMatch = str.match(/(\d+)D/);
             const days = dMatch ? parseInt(dMatch[1]) : 0;
 
-            // 2. 域名年龄逻辑 (type === 'age')
             if (type === 'age') {
                 if (!hasY && !hasMo && days < 7) {
                     return formatted + ' <span class="status-badge badge-recent">最近注册</span>';
                 }
             }
 
-            // 3. 到期倒计时逻辑 (type === 'remaining')
             if (type === 'remaining') {
-                // 判断是否已过期: 包含 "-" 负号 或者 字符串为 "0D"
                 const isExpired = str.includes('-') || (str.trim() === '0D');
-                
                 if (isExpired) {
-                    return formatted.replace('-', '') + ' <span class="status-badge badge-expired">已过期</span>';
+                    let cleanValue = formatted.replace(/-/g, '');
+                    return '<span style="color:var(--color-error)">已过期</span> ' + cleanValue + ' <span class="status-badge badge-expired">已到期</span>';
                 }
-                
-                // 判断即将到期: 不含年、不含月，且天数 < 7
                 if (!hasY && !hasMo && days < 7) {
                     return formatted + ' <span class="status-badge badge-warning">即将到期</span>';
                 }
             }
-
             return formatted;
         }
 
@@ -252,7 +240,6 @@
                 return;
             }
 
-            // 简单路由处理
             const currentPath = window.location.pathname.replace(/^\//, '');
             if (domain !== currentPath) {
                 window.location.href = '/' + domain;
@@ -268,7 +255,6 @@
                 
                 if(res.code === 0 && res.data) {
                     const d = res.data;
-
                     if (d.registered === false) {
                         document.getElementById('unreg-domain-name').innerText = domain;
                         unregEl.style.display = 'block';
@@ -276,12 +262,9 @@
                     }
 
                     resultEl.style.display = 'block';
-
-                    // 渲染年龄和剩余时间（带标注逻辑）
                     document.getElementById('res-age').innerHTML = parseDomainTime(d.age, 'age');
                     document.getElementById('res-remaining').innerHTML = parseDomainTime(d.remaining, 'remaining');
 
-                    // 时间列表处理
                     const timeList = document.getElementById('list-times');
                     timeList.innerHTML = '';
                     const timeFields = [
