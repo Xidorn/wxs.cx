@@ -87,7 +87,12 @@
         .stat-box .label { font-size: 0.75rem; color: var(--text-light); text-transform: uppercase; margin-bottom: 10px; display: block; font-weight: 700; letter-spacing: 1px; }
         .stat-box .value { font-size: 1.4rem; font-weight: 800; color: var(--text-dark); position: relative; z-index: 1; }
         .stat-box .value b { color: var(--primary-color); font-size: 1.7rem; font-weight: 900; }
-        .badge-new { font-size: 0.8rem; color: var(--accent-color); font-weight: 600; margin-left: 5px; background: #f5f3ff; padding: 2px 8px; border-radius: 10px; }
+        
+        /* 状态标签样式 */
+        .status-badge { font-size: 0.8rem; font-weight: 700; padding: 2px 10px; border-radius: 8px; margin-left: 5px; vertical-align: middle; }
+        .badge-recent { color: var(--accent-color); background: #f5f3ff; }
+        .badge-warning { color: #92400e; background: #fef3c7; }
+        .badge-expired { color: #991b1b; background: #fee2e2; }
 
         .detail-card { background: var(--bg-white); border-radius: var(--radius-2xl); box-shadow: var(--shadow-xl); overflow: hidden; margin-bottom: 30px; }
         .info-row { padding: 25px 35px; border-bottom: 1px solid #f1f5f9; display: none; flex-direction: column; gap: 15px; }
@@ -97,8 +102,6 @@
         .ic-reg { color: #3b82f6; } 
         .ic-dns { color: #10b981; } 
         .ic-lock { color: #ef4444; }
-        .ic-rdap { color: var(--color-rdap); }
-        .ic-whois { color: var(--color-whois); }
 
         .vertical-list { display: flex; flex-direction: column; gap: 12px; }
         .list-item { display: flex; align-items: center; gap: 15px; font-size: 1.05rem; color: var(--text-dark); font-weight: 600; }
@@ -164,11 +167,11 @@
             </div>
 
             <div id="rdap-box" class="source-section">
-                <div class="source-title"><span class="ic-rdap"><i class="fas fa-microchip"></i> RDAP RAW DATA</span></div>
+                <div class="source-title"><span><i class="fas fa-microchip"></i> RDAP RAW DATA</span></div>
                 <pre class="source-content" id="res-rdap"></pre>
             </div>
             <div id="whois-box" class="source-section">
-                <div class="source-title"><span class="ic-whois"><i class="fas fa-fingerprint"></i> WHOIS ORIGINAL RECORD</span></div>
+                <div class="source-title"><span><i class="fas fa-fingerprint"></i> WHOIS ORIGINAL RECORD</span></div>
                 <pre class="source-content" id="res-whois"></pre>
             </div>
         </div>
@@ -182,32 +185,43 @@
         document.getElementById('year').textContent = new Date().getFullYear();
 
         /**
-         * 解析 API 返回的 age/remaining 字符串
-         * 格式示例: "21Y 8Mo 8D"
+         * 核心解析函数
          */
-        function parseJsonTime(str, isAge = false) {
-            if (!str || str === "null" || str === "") {
-                return isAge ? '<span class="badge-new">注册不久</span>' : null;
-            }
+        function parseDomainTime(str, type) {
+            if (!str || str === "null" || str === "") return "-";
 
-            // 1. 转换基础格式
+            // 1. 基础格式化
             let formatted = str.toString()
-                .replace(/(\d+)Y/g, '<b>$1</b>年 ')
-                .replace(/(\d+)Mo/g, '<b>$1</b>月 ')
+                .replace(/(\d+)Y/g, '<b>$1</b>年')
+                .replace(/(\d+)Mo/g, '<b>$1</b>月')
                 .replace(/(\d+)D/g, '<b>$1</b>天')
                 .trim();
 
-            // 2. 逻辑判断：如果小于7天（针对域名年龄）
-            if (isAge) {
-                // 检查是否不含年、不含月
-                const hasYear = str.includes('Y');
-                const hasMonth = str.includes('Mo');
-                const daysMatch = str.match(/(\d+)D/);
-                const days = daysMatch ? parseInt(daysMatch[1]) : 0;
+            // 提取数值用于逻辑判断
+            const hasY = str.includes('Y');
+            const hasMo = str.includes('Mo');
+            const dMatch = str.match(/(\d+)D/);
+            const days = dMatch ? parseInt(dMatch[1]) : 0;
 
-                // 只有天数且天数 < 7
-                if (!hasYear && !hasMonth && days < 7) {
-                    return formatted + ' <span class="badge-new">注册不久</span>';
+            // 2. 域名年龄逻辑 (type === 'age')
+            if (type === 'age') {
+                if (!hasY && !hasMo && days < 7) {
+                    return formatted + ' <span class="status-badge badge-recent">最近注册</span>';
+                }
+            }
+
+            // 3. 到期倒计时逻辑 (type === 'remaining')
+            if (type === 'remaining') {
+                // 判断是否已过期: 包含 "-" 负号 或者 字符串为 "0D"
+                const isExpired = str.includes('-') || (str.trim() === '0D');
+                
+                if (isExpired) {
+                    return formatted.replace('-', '') + ' <span class="status-badge badge-expired">已过期</span>';
+                }
+                
+                // 判断即将到期: 不含年、不含月，且天数 < 7
+                if (!hasY && !hasMo && days < 7) {
+                    return formatted + ' <span class="status-badge badge-warning">即将到期</span>';
                 }
             }
 
@@ -238,6 +252,7 @@
                 return;
             }
 
+            // 简单路由处理
             const currentPath = window.location.pathname.replace(/^\//, '');
             if (domain !== currentPath) {
                 window.location.href = '/' + domain;
@@ -262,10 +277,11 @@
 
                     resultEl.style.display = 'block';
 
-                    // 渲染年龄和剩余时间（保留年月日，如果是新域名标注注册不久）
-                    document.getElementById('res-age').innerHTML = parseJsonTime(d.age, true);
-                    document.getElementById('res-remaining').innerHTML = parseJsonTime(d.remaining, false) || '即将到期';
+                    // 渲染年龄和剩余时间（带标注逻辑）
+                    document.getElementById('res-age').innerHTML = parseDomainTime(d.age, 'age');
+                    document.getElementById('res-remaining').innerHTML = parseDomainTime(d.remaining, 'remaining');
 
+                    // 时间列表处理
                     const timeList = document.getElementById('list-times');
                     timeList.innerHTML = '';
                     const timeFields = [
@@ -295,7 +311,8 @@
                     setDisplay('row-status', hasStatus, true);
 
                     if(d.rdapData && d.rdapData !== "" && d.rdapData !== "null") {
-                        document.getElementById('res-rdap').innerText = JSON.stringify(typeof d.rdapData === 'string' ? JSON.parse(d.rdapData) : d.rdapData, null, 2);
+                        const rawRdap = typeof d.rdapData === 'string' ? JSON.parse(d.rdapData) : d.rdapData;
+                        document.getElementById('res-rdap').innerText = JSON.stringify(rawRdap, null, 2);
                         document.getElementById('rdap-box').style.display = 'block';
                     }
                     if(setDisplay('whois-box', d.whoisData)) document.getElementById('res-whois').innerText = d.whoisData;
@@ -305,7 +322,7 @@
                     alertEl.style.display = 'block';
                 }
             } catch (err) { 
-                alertEl.innerText = '服务器连接失败，请稍后重试';
+                alertEl.innerText = '获取数据失败，请重试';
                 alertEl.style.display = 'block';
             } finally { 
                 btn.innerHTML = '<i class="fas fa-bolt"></i> 查询'; 
