@@ -21,7 +21,7 @@
             --shadow-xl: 0 20px 40px -10px rgba(0, 0, 0, 0.08);
             --color-error: #ef4444; 
             --color-success: #10b981;
-            --color-warning: #d97706; /* 用于已过期的琥珀黄 */
+            --color-warning: #d97706;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -58,7 +58,9 @@
         .search-wrapper button {
             background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
             color: white; border: none; padding: 12px 30px; border-radius: 40px; font-weight: 600; cursor: pointer;
+            transition: opacity 0.2s;
         }
+        .search-wrapper button:active { opacity: 0.8; }
 
         #alertMsg {
             display: none; text-align: center; padding: 12px; background: #fef2f2;
@@ -106,9 +108,6 @@
         .source-section { background: var(--bg-white); border-radius: var(--radius-xl); margin-bottom: 25px; border: 1px solid #f1f5f9; box-shadow: var(--shadow-xl); display: none; overflow: hidden; }
         .source-title { padding: 15px 25px; background: #f8fafc; color: var(--text-light); font-size: 0.75rem; font-weight: 700; display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; align-items: center; }
         .source-content { padding: 25px; color: #475569; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; line-height: 1.7; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
-
-        .ic-rdap { color: #4338ca; } 
-        .ic-whois { color: #475569; } 
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         footer { text-align: center; padding: 40px 0; color: var(--text-light); font-size: 0.85rem; }
@@ -166,11 +165,11 @@
             </div>
 
             <div id="rdap-box" class="source-section">
-                <div class="source-title"><span><i class="fas fa-microchip ic-rdap"></i> RDAP RAW DATA</span></div>
+                <div class="source-title"><span><i class="fas fa-microchip" style="color:#4338ca"></i> RDAP RAW DATA</span></div>
                 <pre class="source-content" id="res-rdap"></pre>
             </div>
             <div id="whois-box" class="source-section">
-                <div class="source-title"><span><i class="fas fa-fingerprint ic-whois"></i> WHOIS ORIGINAL RECORD</span></div>
+                <div class="source-title"><span><i class="fas fa-fingerprint" style="color:#475569"></i> WHOIS ORIGINAL RECORD</span></div>
                 <pre class="source-content" id="res-whois"></pre>
             </div>
         </div>
@@ -181,7 +180,6 @@
     </div>
 
     <script>
-        // 1. 定义全局请求 ID，用于处理竞态条件
         let currentRequestId = 0;
 
         document.getElementById('year').textContent = new Date().getFullYear();
@@ -229,9 +227,10 @@
             const resultEl = document.getElementById('resultView');
             const btn = document.getElementById('queryBtn');
 
-            // 2. 每次触发查询，增加 ID
+            // 1. 增加请求 ID
             const requestId = ++currentRequestId;
 
+            // 2. 清理界面状态
             alertEl.style.display = 'none';
             unregEl.style.display = 'none';
             resultEl.style.display = 'none';
@@ -249,16 +248,15 @@
                 window.history.pushState(null, '', '/' + domain);
             }
 
+            // 3. UI 反馈但不锁定按钮
             btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> 查询中';
-            btn.disabled = true;
 
             try {
                 const response = await fetch(`https://api.mrwang.com/whois.php?domain=${domain}`);
                 const res = await response.json();
                 
-                // 3. 核心竞态处理逻辑：如果当前的 requestId 不是最后一次触发的 ID，则放弃渲染
+                // 4. 竞态处理：如果不是最新的请求，直接丢弃结果
                 if (requestId !== currentRequestId) {
-                    console.log(`放弃旧请求渲染: ${domain}`);
                     return;
                 }
                 
@@ -267,63 +265,56 @@
                     if (d.registered === false) {
                         document.getElementById('unreg-domain-name').innerText = domain;
                         unregEl.style.display = 'block';
-                        return;
-                    }
+                    } else {
+                        resultEl.style.display = 'block';
+                        document.getElementById('res-age').innerHTML = parseDomainTime(d.age, 'age');
+                        document.getElementById('res-remaining').innerHTML = parseDomainTime(d.remaining, 'remaining');
 
-                    resultEl.style.display = 'block';
-                    document.getElementById('res-age').innerHTML = parseDomainTime(d.age, 'age');
-                    document.getElementById('res-remaining').innerHTML = parseDomainTime(d.remaining, 'remaining');
+                        const timeList = document.getElementById('list-times');
+                        timeList.innerHTML = '';
+                        const timeFields = [
+                            { label: '注册日期', val: d.creationDateISO8601 || d.creationDate },
+                            { label: '到期日期', val: d.expirationDateISO8601 || d.expirationDate },
+                            { label: '更新日期', val: d.updatedDateISO8601 || d.updatedDate }
+                        ];
+                        let hasValidTime = false;
+                        timeFields.forEach(f => {
+                            if(f.val && f.val !== "null" && f.val !== "") {
+                                hasValidTime = true;
+                                const cleanTime = f.val.replace('T',' ').replace('Z','').substring(0, 19);
+                                timeList.innerHTML += `<div class="list-item"><span class="item-sub-label">${f.label}</span><span>${cleanTime}</span></div>`;
+                            }
+                        });
+                        setDisplay('row-times', hasValidTime, true);
+                        setDisplay('row-registrar', d.registrar, true);
+                        document.getElementById('val-registrar').innerText = d.registrar;
+                        const hasNs = d.nameServers && d.nameServers.length > 0;
+                        document.getElementById('list-ns').innerHTML = hasNs ? d.nameServers.map(ns => `<div class="list-item">${ns}</div>`).join('') : '';
+                        setDisplay('row-ns', hasNs, true);
+                        const hasStatus = d.status && d.status.length > 0;
+                        document.getElementById('list-status').innerHTML = hasStatus ? d.status.map(s => `<div class="list-item">${s.text}</div>`).join('') : '';
+                        setDisplay('row-status', hasStatus, true);
 
-                    const timeList = document.getElementById('list-times');
-                    timeList.innerHTML = '';
-                    const timeFields = [
-                        { label: '注册日期', val: d.creationDateISO8601 || d.creationDate },
-                        { label: '到期日期', val: d.expirationDateISO8601 || d.expirationDate },
-                        { label: '更新日期', val: d.updatedDateISO8601 || d.updatedDate }
-                    ];
-                    let hasValidTime = false;
-                    timeFields.forEach(f => {
-                        if(f.val && f.val !== "null" && f.val !== "") {
-                            hasValidTime = true;
-                            const cleanTime = f.val.replace('T',' ').replace('Z','').substring(0, 19);
-                            timeList.innerHTML += `<div class="list-item"><span class="item-sub-label">${f.label}</span><span>${cleanTime}</span></div>`;
+                        if(d.rdapData && d.rdapData !== "" && d.rdapData !== "null") {
+                            const rawRdap = typeof d.rdapData === 'string' ? JSON.parse(d.rdapData) : d.rdapData;
+                            document.getElementById('res-rdap').innerText = JSON.stringify(rawRdap, null, 2);
+                            document.getElementById('rdap-box').style.display = 'block';
                         }
-                    });
-                    setDisplay('row-times', hasValidTime, true);
-
-                    setDisplay('row-registrar', d.registrar, true);
-                    document.getElementById('val-registrar').innerText = d.registrar;
-
-                    const hasNs = d.nameServers && d.nameServers.length > 0;
-                    document.getElementById('list-ns').innerHTML = hasNs ? d.nameServers.map(ns => `<div class="list-item">${ns}</div>`).join('') : '';
-                    setDisplay('row-ns', hasNs, true);
-
-                    const hasStatus = d.status && d.status.length > 0;
-                    document.getElementById('list-status').innerHTML = hasStatus ? d.status.map(s => `<div class="list-item">${s.text}</div>`).join('') : '';
-                    setDisplay('row-status', hasStatus, true);
-
-                    if(d.rdapData && d.rdapData !== "" && d.rdapData !== "null") {
-                        const rawRdap = typeof d.rdapData === 'string' ? JSON.parse(d.rdapData) : d.rdapData;
-                        document.getElementById('res-rdap').innerText = JSON.stringify(rawRdap, null, 2);
-                        document.getElementById('rdap-box').style.display = 'block';
+                        if(setDisplay('whois-box', d.whoisData)) document.getElementById('res-whois').innerText = d.whoisData;
                     }
-                    if(setDisplay('whois-box', d.whoisData)) document.getElementById('res-whois').innerText = d.whoisData;
-
                 } else {
                     alertEl.innerText = res.msg || '查询失败';
                     alertEl.style.display = 'block';
                 }
             } catch (err) { 
-                // 同样需要判断 ID
                 if (requestId === currentRequestId) {
                     alertEl.innerText = '获取数据失败，请重试';
                     alertEl.style.display = 'block';
                 }
             } finally { 
-                // 只有最后一次请求负责恢复按钮状态
+                // 只有最新的请求负责重置按钮文字
                 if (requestId === currentRequestId) {
                     btn.innerHTML = '<i class="fas fa-bolt"></i> 查询'; 
-                    btn.disabled = false;
                 }
             }
         }
@@ -337,7 +328,9 @@
             }
         }
 
-        document.getElementById('domainInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') query(); });
+        document.getElementById('domainInput').addEventListener('keydown', (e) => { 
+            if(e.key === 'Enter') query(); 
+        });
         window.addEventListener('DOMContentLoaded', checkAutoQuery);
     </script>
 </body>
