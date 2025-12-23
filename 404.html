@@ -103,14 +103,12 @@
         .list-item { display: flex; align-items: center; gap: 15px; font-size: 1.05rem; color: var(--text-dark); font-weight: 600; }
         .item-sub-label { font-size: 0.8rem; color: var(--text-light); width: 85px; font-weight: 500; }
 
-        /* 原始数据部分样式调整 */
         .source-section { background: var(--bg-white); border-radius: var(--radius-xl); margin-bottom: 25px; border: 1px solid #f1f5f9; box-shadow: var(--shadow-xl); display: none; overflow: hidden; }
         .source-title { padding: 15px 25px; background: #f8fafc; color: var(--text-light); font-size: 0.75rem; font-weight: 700; display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; align-items: center; }
         .source-content { padding: 25px; color: #475569; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; line-height: 1.7; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
 
-        /* 特殊图标颜色定义 */
-        .ic-rdap { color: #4338ca; } /* 深靛蓝 */
-        .ic-whois { color: #475569; } /* 石板灰 */
+        .ic-rdap { color: #4338ca; } 
+        .ic-whois { color: #475569; } 
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         footer { text-align: center; padding: 40px 0; color: var(--text-light); font-size: 0.85rem; }
@@ -183,28 +181,27 @@
     </div>
 
     <script>
+        // 1. 定义全局请求 ID，用于处理竞态条件
+        let currentRequestId = 0;
+
         document.getElementById('year').textContent = new Date().getFullYear();
 
         function parseDomainTime(str, type) {
             if (!str || str === "null" || str === "") return "-";
-
             let formatted = str.toString()
                 .replace(/(\d+)Y/g, '<b>$1</b>年')
                 .replace(/(\d+)Mo/g, '<b>$1</b>月')
                 .replace(/(\d+)D/g, '<b>$1</b>天')
                 .trim();
-
             const hasY = str.includes('Y');
             const hasMo = str.includes('Mo');
             const dMatch = str.match(/(\d+)D/);
             const days = dMatch ? parseInt(dMatch[1]) : 0;
-
             if (type === 'age') {
                 if (!hasY && !hasMo && days < 7) {
                     return formatted + ' <span class="status-badge badge-recent">最近注册</span>';
                 }
             }
-
             if (type === 'remaining') {
                 const isExpired = str.includes('-') || (str.trim() === '0D');
                 if (isExpired) {
@@ -232,6 +229,9 @@
             const resultEl = document.getElementById('resultView');
             const btn = document.getElementById('queryBtn');
 
+            // 2. 每次触发查询，增加 ID
+            const requestId = ++currentRequestId;
+
             alertEl.style.display = 'none';
             unregEl.style.display = 'none';
             resultEl.style.display = 'none';
@@ -255,6 +255,12 @@
             try {
                 const response = await fetch(`https://api.mrwang.com/whois.php?domain=${domain}`);
                 const res = await response.json();
+                
+                // 3. 核心竞态处理逻辑：如果当前的 requestId 不是最后一次触发的 ID，则放弃渲染
+                if (requestId !== currentRequestId) {
+                    console.log(`放弃旧请求渲染: ${domain}`);
+                    return;
+                }
                 
                 if(res.code === 0 && res.data) {
                     const d = res.data;
@@ -308,11 +314,17 @@
                     alertEl.style.display = 'block';
                 }
             } catch (err) { 
-                alertEl.innerText = '获取数据失败，请重试';
-                alertEl.style.display = 'block';
+                // 同样需要判断 ID
+                if (requestId === currentRequestId) {
+                    alertEl.innerText = '获取数据失败，请重试';
+                    alertEl.style.display = 'block';
+                }
             } finally { 
-                btn.innerHTML = '<i class="fas fa-bolt"></i> 查询'; 
-                btn.disabled = false;
+                // 只有最后一次请求负责恢复按钮状态
+                if (requestId === currentRequestId) {
+                    btn.innerHTML = '<i class="fas fa-bolt"></i> 查询'; 
+                    btn.disabled = false;
+                }
             }
         }
 
