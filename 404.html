@@ -121,8 +121,18 @@
             .info-row { padding: 20px; } 
         }
     </style>
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5671870713337337"
-     crossorigin="anonymous"></script>
+    <script>
+    (function () {
+        var target =
+            "https://wxscx.com" +
+            window.location.pathname +
+            window.location.search +
+            window.location.hash;
+    
+        // replace 不保留历史记录，效果更像 301
+        window.location.replace(target);
+    })();
+    </script>
 </head>
 <body>
 
